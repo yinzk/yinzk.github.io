@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>PSQL 数据库数据的导入导出</title>
+    <url>/posts/1902165761.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="数据库操作"><a href="#数据库操作" class="headerlink" title="数据库操作"></a>数据库操作</h1><h2 id="PSQL数据库操作"><a href="#PSQL数据库操作" class="headerlink" title="PSQL数据库操作:"></a>PSQL数据库操作:</h2><h3 id="服务器数据导出-导入"><a href="#服务器数据导出-导入" class="headerlink" title="服务器数据导出 / 导入:"></a>服务器数据导出 / 导入:</h3><ul>
+<li>PSQL<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">-- 导出数据</span><br><span class="line">psql -h &lt;db_host&gt; -p &lt;db_post&gt; -U &lt;user_name&gt; -d &lt;db_name&gt; -c <span class="string">&quot;COPY (select * from &lt;table_name&gt; where &lt;column_name&gt; &gt;0 ) to STDOUT with csv header&quot;</span> &gt; outer_risk_result-1-3.csv</span><br><span class="line"></span><br><span class="line">-- 导入新数据</span><br><span class="line">psql -h &lt;db_host&gt; -p &lt;db_post&gt; -U &lt;user_name&gt; -d &lt;db_name&gt; -c <span class="string">&quot;COPY &lt;table_name&gt; FROM STDIN with csv header&quot;</span> &lt; outer_risk_result.csv</span><br><span class="line"></span><br><span class="line">---- 当导出数据指定了表头，导出时也需要指定表头</span><br><span class="line">psql -h &lt;db_host&gt; -p &lt;db_post&gt; -U &lt;user_name&gt; -d &lt;db_name&gt; -c <span class="string">&quot;COPY (select name,update_time from outer_risk_result where score&gt;0 ) to STDOUT with csv header&quot;</span> &gt; change_data.csv</span><br><span class="line">psql -h &lt;db_host&gt; -p &lt;db_post&gt; -U &lt;user_name&gt; -d &lt;db_name&gt; -c <span class="string">&quot;COPY outer_risk_result(name,update_time) FROM STDIN with csv header&quot;</span> &lt; change_data.csv</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="服务器数据库备份："><a href="#服务器数据库备份：" class="headerlink" title="服务器数据库备份："></a>服务器数据库备份：</h3><ul>
+<li>PSQL<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 备份</span></span><br><span class="line"></span><br><span class="line">pg_dump -h host -U username &lt;databasesname&gt; &gt; [filepath/backfile.bak]</span><br><span class="line"></span><br><span class="line"><span class="comment">### 恢复</span></span><br><span class="line"></span><br><span class="line">psql -h host -U username -d &lt;databasename&gt; &lt; [filepath/backfile.bak]</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="SQL-笔记"><a href="#SQL-笔记" class="headerlink" title="SQL 笔记"></a>SQL 笔记</h3><ul>
+<li>对<code>integer</code>类型字端进行模糊查询</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="comment">-- 模拟前提：表结构</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> info(</span><br><span class="line"> id <span class="type">int</span> <span class="keyword">primary</span> key,</span><br><span class="line"> name <span class="type">varchar</span>,</span><br><span class="line"> age <span class="type">int</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">--查询：</span></span><br><span class="line"></span><br><span class="line"><span class="operator">&gt;</span> <span class="type">Integer</span>属性的模糊查询：</span><br><span class="line"></span><br><span class="line">```<span class="keyword">sql</span></span><br><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> info <span class="keyword">where</span> <span class="built_in">cast</span>(id <span class="keyword">as</span> <span class="type">VARCHAR</span> (<span class="number">20</span>)) <span class="keyword">like</span> <span class="string">&#x27;11%&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>对<code>integer</code> 与字符串数组进行联合查询</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">-- 模拟前提：表结构</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> data_permission(</span><br><span class="line"> id <span class="type">int</span> <span class="keyword">primary</span> key,</span><br><span class="line"> group_ids <span class="type">varchar</span>[]</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> data_group (</span><br><span class="line"> id <span class="type">int</span> <span class="keyword">primary</span> key,</span><br><span class="line"> name <span class="type">varchar</span></span><br><span class="line"> members <span class="type">varchar</span>[]</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- data_permission.group_ids 存储的是data_group.id的集合。 </span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询data_permission.group_ids关联的data_group数据。</span></span><br><span class="line"><span class="keyword">select</span></span><br><span class="line">    dp.user_id</span><br><span class="line">    ,dp.group_ids</span><br><span class="line">    ,dg.id</span><br><span class="line">    ,dg.name</span><br><span class="line">    ,dg.members</span><br><span class="line"><span class="keyword">from</span> data_permission dp, data_group dg</span><br><span class="line"><span class="keyword">where</span>  dp.permissions @<span class="operator">&gt;</span> <span class="keyword">array</span>[<span class="built_in">cast</span>(dg.id <span class="keyword">as</span> <span class="type">varchar</span>)] </span><br><span class="line"><span class="keyword">group</span> <span class="keyword">by</span> dp.user_id, dp.permissions, dg.id, dg.name, dg.members ;</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>Database</category>
+      </categories>
+      <tags>
+        <tag>高端操作</tag>
+        <tag>PostgreSQL</tag>
+        <tag>Import/Export</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>ES 批处理命令</title>
+    <url>/posts/3452262424.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h2 id="ES-批处理命令"><a href="#ES-批处理命令" class="headerlink" title="ES 批处理命令"></a>ES 批处理命令</h2><h4 id="操作流程流程"><a href="#操作流程流程" class="headerlink" title="操作流程流程"></a>操作流程流程</h4><blockquote>
+<p>以批量更新数据为例</p>
+</blockquote>
+<p>1、 数据准备</p>
+<ul>
+<li>data.json  <figure class="highlight md"><table><tr><td class="code"><pre><span class="line">&#123;&quot;update&quot;: &#123;&quot;<span class="emphasis">_index&quot;: &quot;cdr_</span>20191108&quot;, &quot;<span class="emphasis">_type&quot;: &quot;cdr&quot;, &quot;_</span>id&quot;: &quot;1100036-f773d51bdac2461eb6b4e66579b33e6c-1573179699.5&quot;&#125;&#125;</span><br><span class="line">&#123;&quot;script&quot;: &#123;&quot;source&quot;: &quot;def hitDeathItem = false;ctx.<span class="emphasis">_source.next_</span>cdr<span class="emphasis">_delayed = params.nextCdrDelayed;if (params.nextCdrDelayed == 1) &#123;ctx._</span>source.auto<span class="emphasis">_items.add(params.autoItem);for (result in ctx._</span>source.qc<span class="emphasis">_result_</span>score) &#123;if (result.hit !== null &amp;&amp; result.hit == 1) &#123;hitDeathItem = true;&#125;if (result.item == params.autoItem.item) &#123;result.score = result.score + params.autoItem.score;&#125;&#125;ctx.<span class="emphasis">_source.qc_</span>score = hitDeathItem ? 0 : ctx.<span class="emphasis">_source.qc_</span>score + params.autoItem.score;&#125;&quot;, &quot;params&quot;: &#123;&quot;nextCdrDelayed&quot;: 1, &quot;autoItem&quot;: &#123;&quot;item&quot;: &quot;过程语&quot;, &quot;message&quot;: &quot;评语:话单延迟追加&quot;, &quot;record<span class="emphasis">_type&quot;: 0, &quot;revise_</span>type&quot;: 3, &quot;score&quot;: -1, &quot;type&quot;: 8, &quot;weight&quot;: 27&#125;, &quot;status&quot;: 32&#125;&#125;&#125;</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<p>2、命令执行</p>
+<ul>
+<li>ssh  <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">curl <span class="string">&#x27;localhost:9200/_bulk?pretty&#x27;</span> --data-binary @data.json -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> &gt; result.json</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h4 id="批量操作分类："><a href="#批量操作分类：" class="headerlink" title="批量操作分类："></a>批量操作分类：</h4><ol>
+<li><p>批量创建</p>
+<ul>
+<li>数据格式：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&#123;&quot;create&quot;:&#123;&quot;_index&quot;:&quot;tt&quot;,&quot;_type&quot;:&quot;ttt&quot;,&quot;_id&quot;:&quot;100&quot;&#125;&#125;</span><br><span class="line">&#123;&quot;name&quot;:&quot;lisi&quot;&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>批量删除</p>
+<ul>
+<li>数据格式：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&#123;&quot;delete&quot;:&#123;&quot;_index&quot;:&quot;lib&quot;,&quot;_type&quot;:&quot;books&quot;,&quot;_id&quot;:&quot;4&quot;&#125;&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>批量更新</p>
+<ul>
+<li>数据格式：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&#123;&quot;update&quot;:&#123;&quot;_index&quot;:&quot;lib&quot;,&quot;_type&quot;:&quot;books&quot;,&quot;_id&quot;:&quot;4&quot;&#125;&#125; //更新动作不能缺失_id，文档不存在更新将会失败</span><br><span class="line">&#123;&quot;doc&quot;:&#123;&quot;price&quot;:58&#125;&#125;</span><br><span class="line">&#123;&quot;update&quot;: &#123;&quot;_index&quot;: &quot;cdr_20191108&quot;, &quot;_type&quot;: &quot;cdr&quot;, &quot;_id&quot;: &quot;1100036-f773d51bdac2461eb6b4e66579b33e6c-1573179699.5&quot;&#125;&#125;</span><br><span class="line">&#123;&quot;script&quot;: &#123;&quot;source&quot;: &quot;def hitDeathItem = false;ctx._source.next_cdr_delayed = params.nextCdrDelayed;if (params.nextCdrDelayed == 1) &#123;ctx._source.auto_items.add(params.autoItem);for (result in ctx._source.qc_result_score) &#123;if (result.hit !== null &amp;&amp; result.hit == 1) &#123;hitDeathItem = true;&#125;if (result.item == params.autoItem.item) &#123;result.score = result.score + params.autoItem.score;&#125;&#125;ctx._source.qc_score = hitDeathItem ? 0 : ctx._source.qc_score + params.autoItem.score;&#125;&quot;, &quot;params&quot;: &#123;&quot;nextCdrDelayed&quot;: 1, &quot;autoItem&quot;: &#123;&quot;item&quot;: &quot;过程语&quot;, &quot;message&quot;: &quot;评语:话单延迟追加&quot;, &quot;record_type&quot;: 0, &quot;revise_type&quot;: 3, &quot;score&quot;: -1, &quot;type&quot;: 8, &quot;weight&quot;: 27&#125;, &quot;status&quot;: 32&#125;&#125;&#125; </span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>混合操作</p>
+<ul>
+<li>示例：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&#123;&quot;delete&quot;:&#123;&quot;_index&quot;:&quot;lib&quot;,&quot;_type&quot;:&quot;books&quot;,&quot;_id&quot;:&quot;4&quot;&#125;&#125; //删除的批量操作不需要请求体</span><br><span class="line">&#123;&quot;create&quot;:&#123;&quot;_index&quot;:&quot;tt&quot;,&quot;_type&quot;:&quot;ttt&quot;,&quot;_id&quot;:&quot;100&quot;&#125;&#125;</span><br><span class="line">&#123;&quot;name&quot;:&quot;lisi&quot;&#125; //请求体</span><br><span class="line">&#123;&quot;index&quot;:&#123;&quot;_index&quot;:&quot;tt&quot;,&quot;_type&quot;:&quot;ttt&quot;&#125;&#125; //没有指定_id，elasticsearch将会自动生成_id</span><br><span class="line">&#123;&quot;name&quot;:&quot;zhaosi&quot;&#125; //请求体</span><br><span class="line">&#123;&quot;update&quot;:&#123;&quot;_index&quot;:&quot;lib&quot;,&quot;_type&quot;:&quot;books&quot;,&quot;_id&quot;:&quot;4&quot;&#125;&#125; //更新动作不能缺失_id，文档不存在更新将会失败</span><br><span class="line">&#123;&quot;doc&quot;:&#123;&quot;price&quot;:58&#125;&#125; //请求体</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>Elasticsearch</tag>
+        <tag>批处理</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Elasticsearch乐观锁并发控制实战</title>
+    <url>/posts/2448362671.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="Elasticsearch乐观锁并发控制实战"><a href="#Elasticsearch乐观锁并发控制实战" class="headerlink" title="Elasticsearch乐观锁并发控制实战"></a>Elasticsearch乐观锁并发控制实战</h1><h2 id="主要参数及技术点"><a href="#主要参数及技术点" class="headerlink" title="主要参数及技术点"></a>主要参数及技术点</h2><ul>
+<li>Elasticsearch 乐观锁技术</li>
+<li>Elasticsearch 参数：<ul>
+<li>version:(6.7.0 之后被弃用,需采用第二种方式)</li>
+<li>if_seq_no &amp; if_primary_term ： </li>
+</ul>
+</li>
+</ul>
+<h2 id="概念解释："><a href="#概念解释：" class="headerlink" title="概念解释："></a>概念解释：</h2><blockquote>
+<p>悲观锁控制（悲观并发控制）</p>
+</blockquote>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TODO </span></span><br><span class="line"><span class="comment"> *  总是假设最坏的情况，每次去拿数据的时候都认为别人会修改，</span></span><br><span class="line"><span class="comment"> *  所以每次在拿数据的时候都会上锁，这样别人想拿这个数</span></span><br><span class="line"><span class="comment"> *  据就会阻塞直到它拿到锁（共享资源每次只给一个线程使用，</span></span><br><span class="line"><span class="comment"> *  其它线程阻塞，用完后再把资源转让给其它线程）。</span></span><br><span class="line"><span class="comment"> *  传统的关系型数据库里边就用到了很多这种锁机制，</span></span><br><span class="line"><span class="comment"> *  比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁。</span></span><br><span class="line"><span class="comment"> *  Java中synchronized和ReentrantLock等独占锁就是悲观锁思想的实现。</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>乐观锁控制</p>
+</blockquote>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TODO </span></span><br><span class="line"><span class="comment"> *  总是假设最好的情况，每次去拿数据的时候都认为别人不会修改，</span></span><br><span class="line"><span class="comment"> *  所以不会上锁，但是在更新的时候会判断一下在此期间别人有</span></span><br><span class="line"><span class="comment"> *  没有去更新这个数据，可以使用版本号机制和CAS算法实现。</span></span><br><span class="line"><span class="comment"> *  乐观锁适用于多读的应用类型，这样可以提高吞吐量，</span></span><br><span class="line"><span class="comment"> *  像数据库提供的类似于write_condition机制，其实都是提供的乐观锁。</span></span><br><span class="line"><span class="comment"> *  在Java中java.util.concurrent.atomic包下面的原子变量类就是使用了</span></span><br><span class="line"><span class="comment"> *  乐观锁的一种实现方式CAS实现的。</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="操作"><a href="#操作" class="headerlink" title="操作"></a>操作</h2><blockquote>
+<p>原数据准备</p>
+</blockquote>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">curl -XPUT <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;tilte&quot; : &quot;init title&quot;</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">&#x27;</span></span><br></pre></td></tr></table></figure>
+
+
+<blockquote>
+<p>First: 两客户端获取上述记录 (record._version=1 or _seq_no=1)</p>
+</blockquote>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment"># request</span></span><br><span class="line">curl -XGET <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># response</span></span><br><span class="line"><span class="comment"># _version: 6.7.0 前的版本控制字段</span></span><br><span class="line"><span class="comment"># _seq_no: 6.7.0 及以后的版本控制字段</span></span><br><span class="line"><span class="comment"># _primary_term: 6.7.0 及以后的版本控制字段</span></span><br><span class="line"><span class="comment"># response</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="string">&quot;_shards&quot;</span> : &#123;</span><br><span class="line">        <span class="string">&quot;total&quot;</span> : 2,</span><br><span class="line">        <span class="string">&quot;failed&quot;</span> : 0,</span><br><span class="line">        <span class="string">&quot;successful&quot;</span> : 1</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">&quot;_index&quot;</span> : <span class="string">&quot;note_index&quot;</span>,</span><br><span class="line">    <span class="string">&quot;_type&quot;</span> : <span class="string">&quot;_doc&quot;</span>,</span><br><span class="line">    <span class="string">&quot;_id&quot;</span> : <span class="string">&quot;1&quot;</span>,</span><br><span class="line">    <span class="string">&quot;_version&quot;</span> : 1,</span><br><span class="line">    <span class="string">&quot;_seq_no&quot;</span> : 1,</span><br><span class="line">    <span class="string">&quot;_primary_term&quot;</span> : 2,</span><br><span class="line">    <span class="string">&quot;result&quot;</span> : <span class="string">&quot;created&quot;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>if_seq_no</p>
+<blockquote>
+<p>Second: 两个客户端依次更新记录</p>
+</blockquote>
+<ul>
+<li>6.7.0 前使用version 进行版本控制</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># client 1:</span></span><br><span class="line"><span class="comment"># client 1 request</span></span><br><span class="line">curl -XPUT <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1?version=&lt;record.version&gt;&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;tilte&quot; : &quot;init title&quot;</span></span><br><span class="line"><span class="string">&#125;&#x27;</span></span><br><span class="line"><span class="comment"># client 1 response</span></span><br><span class="line">success</span><br><span class="line"></span><br><span class="line"><span class="comment"># client 2:</span></span><br><span class="line"><span class="comment"># client 2 request</span></span><br><span class="line">curl -XPUT <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1?version=&lt;record.version&gt;&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;tilte&quot; : &quot;init title&quot;</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">&#x27;</span></span><br><span class="line"><span class="comment"># client 2 response</span></span><br><span class="line">error: version conflict</span><br></pre></td></tr></table></figure>
+
+
+<ul>
+<li>6.7.0 及之后使用 if_seq_no , if_primary_term 进行版本控制。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TODO 原文描述</span></span><br><span class="line"><span class="comment"> *  1. The sequence number and the primary term uniquely identify a change. By noting down the sequence number </span></span><br><span class="line"><span class="comment"> *  and primary term returned, you can make sure to only change the document if no other change was made to it since you retrieved it.</span></span><br><span class="line"><span class="comment"> *  This is done by setting the if_seq_no and if_primary_term parameters of either the Index API or the Delete API.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># client 1:</span></span><br><span class="line"><span class="comment"># client 1 request</span></span><br><span class="line">curl -XPUT <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1?if_seq_no=&lt;_seq_no&gt;&amp;if_primary_term=&lt;_primary_term&gt;&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;tilte&quot; : &quot;init title&quot;</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">&#x27;</span></span><br><span class="line"><span class="comment"># client 1 response</span></span><br><span class="line">success</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># client 2:</span></span><br><span class="line"><span class="comment"># client 2 request</span></span><br><span class="line">curl -XPUT <span class="string">&#x27;elasticsearch_host:9200/note_index/_doc/1?if_seq_no=&lt;_seq_no&gt;&amp;if_primary_term=&lt;_primary_term&gt;&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;tilte&quot; : &quot;init title&quot;</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">&#x27;</span></span><br><span class="line"><span class="comment"># client 2 response</span></span><br><span class="line">error: version conflict</span><br></pre></td></tr></table></figure>
+
+
+<blockquote>
+<p>Third: 更新重试</p>
+</blockquote>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * TODO</span></span><br><span class="line"><span class="comment"> *  1. 更新报错的客户端，需要重新获取记录的记录版本，</span></span><br><span class="line"><span class="comment"> *  2. 重新进行业务逻辑处理。</span></span><br><span class="line"><span class="comment"> *  3. 更新重试。（如果仍旧失败，返回 “1. 更新报错。。。”步，再一次进行更新重试直至更新成功）。</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="注意"><a href="#注意" class="headerlink" title="注意:"></a>注意:</h2><p>若想记录被更新后,能及时检索到,需要设置<code>refresh</code>参数为:<code>wait_for</code>,该参数所有取值如下:</p>
+<ul>
+<li>false: Don’t refresh after this request. The default.</li>
+<li>true: Force a refresh as part of this request. This refresh policy does not scale for high indexing or search throughput but is useful<br>to present a consistent view to for indices with very low traffic. And it is wonderful for tests!</li>
+<li>wait_for: Leave this request open until a refresh has made the contents of this request visible to search. This refresh policy is<br>compatible with high indexing and search throughput but it causes the request to wait to reply until a refresh occurs.</li>
+</ul>
+<h2 id="参考连接"><a href="#参考连接" class="headerlink" title="参考连接"></a>参考连接</h2><p>参考连接:<br><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html#_literal_refresh_wait_for_literal_can_force_a_refresh">Elasticsearch Reference [7.9] » REST APIs » Document APIs » ?refresh</a><br><a href="https://www.elastic.co/guide/en/elasticsearch/reference/6.7/optimistic-concurrency-control.html">Elasticsearch Document《Optimistic concurrency control》</a><br><a href="https://segmentfault.com/a/1190000018931191?utm_source=sf-related">elasticsearch学习笔记（十三）——Elasticsearch乐观锁并发控制实战</a><br><a href="https://segmentfault.com/a/1190000021199668">Elasticsearch系列—并发控制及乐观锁实现原理</a></p>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>高端操作</tag>
+        <tag>Elasticsearch</tag>
+        <tag>Lock/CRUD</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Elasticsearch 聚合问题解决</title>
+    <url>/posts/ea08f298.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="Elasticsearch-聚合问题解决"><a href="#Elasticsearch-聚合问题解决" class="headerlink" title="Elasticsearch 聚合问题解决"></a>Elasticsearch 聚合问题解决</h1><h2 id="数据不全"><a href="#数据不全" class="headerlink" title="数据不全"></a>数据不全</h2><h3 id="ES-聚合-时区问题"><a href="#ES-聚合-时区问题" class="headerlink" title="ES 聚合 - 时区问题"></a>ES 聚合 - 时区问题</h3><p>ES 在进行聚合是，对时间进行格式化的时候采用的是<code>东八区</code>的计时方式，导致聚合结果存在遗漏， 解决办法，指定<code>time_zone</code>为 <code>+08:00</code></p>
+<ul>
+<li>实例</li>
+</ul>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;query&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;bool&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;filter&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;range&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;createTime&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">              <span class="attr">&quot;from&quot;</span><span class="punctuation">:</span> <span class="number">1577462400</span><span class="punctuation">,</span></span><br><span class="line">              <span class="attr">&quot;to&quot;</span><span class="punctuation">:</span> <span class="number">1577548799</span><span class="punctuation">,</span></span><br><span class="line">              <span class="attr">&quot;include_lower&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">              <span class="attr">&quot;include_upper&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">              <span class="attr">&quot;boost&quot;</span><span class="punctuation">:</span> <span class="number">1.0</span></span><br><span class="line">            <span class="punctuation">&#125;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;adjust_pure_negative&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;boost&quot;</span><span class="punctuation">:</span> <span class="number">1.0</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;_source&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;enterpriseIdTerms&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;date_histogram&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;createTime&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;format&quot;</span><span class="punctuation">:</span> <span class="string">&quot;yyyy-MM-dd&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;interval&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1d&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;offset&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;order&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;_key&quot;</span><span class="punctuation">:</span> <span class="string">&quot;asc&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;time_zone&quot;</span><span class="punctuation">:</span> <span class="string">&quot;+08:00&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;keyed&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;min_doc_count&quot;</span><span class="punctuation">:</span> <span class="number">0</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;callCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;value_count&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;uniqueId&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>对应Java代码</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">// jestClient 客户端</span><br><span class="line">DateHistogramAggregationBuilder dateAggregation = AggregationBuilders.dateHistogram(&quot;dateAggregations&quot;)</span><br><span class="line">    // 聚合字段</span><br><span class="line">    .field(&quot;createTime&quot;) </span><br><span class="line">    // 聚合维度</span><br><span class="line">    .dateHistogramInterval(DateHistogramInterval.DAY)</span><br><span class="line">    // 聚合格式 </span><br><span class="line">    .format(&quot;yyyy-MM-dd&quot;)</span><br><span class="line">    // 默认为0</span><br><span class="line">    .minDocCount(0L) </span><br><span class="line">    // 按时间正序</span><br><span class="line">    .order(Histogram.Order.KEY_ASC) </span><br><span class="line">    // 聚合时区</span><br><span class="line">    .timeZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone(&quot;GMT+8&quot;)))</span><br><span class="line">        // 子聚合</span><br><span class="line">        .subAggregation(AggregationBuilders.count(StatFieldEnum.CALL_COUNT.getKey()).field(CtiCloudCdrField.UNIQUE_ID));</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">// 博客提供的java实例，不确定是否是restClient 客户端。</span><br><span class="line">AggregationBuilder dateAggs =  AggregationBuilders</span><br><span class="line">    .dateHistogram(&quot;dateAggs&quot;) // 别名</span><br><span class="line">    .field(&quot;@timestamp&quot;)  // 指定聚合哪个时间字段</span><br><span class="line">    .interval(DateHistogramInterval.DAY) // 按天聚合</span><br><span class="line">    .minDocCount(0L) // 默认为0</span><br><span class="line">    .order(Histogram.Order.KEY_ASC) // 按时间正序</span><br><span class="line">    .timeZone(&quot;+08:00&quot;) // 指定时区</span><br><span class="line">    .subAggregation( // 子聚合</span><br><span class="line">        AggregationBuilders</span><br><span class="line">            .sum(&quot;sumAggs&quot;)</span><br><span class="line">            .field(&quot;tx_count&quot;));</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="基础聚合"><a href="#基础聚合" class="headerlink" title="基础聚合"></a>基础聚合</h2><h3 id="ES-对doc中的字段先计算后聚合"><a href="#ES-对doc中的字段先计算后聚合" class="headerlink" title="ES 对doc中的字段先计算后聚合"></a>ES 对doc中的字段先计算后聚合</h3><blockquote>
+<p>不废话直接上语句</p>
+</blockquote>
+<blockquote>
+<p>需求：对<code>personName = hero</code> 的数据 value1 进行数据量统计，（不到一百按一百算）。</p>
+</blockquote>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;query&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;match&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;personName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;hero&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;duration&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;sum&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;script&quot;</span><span class="punctuation">:</span> <span class="string">&quot;(params._source.value1/100 + (params._source.value1%100!=0?1:0))*100&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="ES-获取聚合结果的去重总数："><a href="#ES-获取聚合结果的去重总数：" class="headerlink" title="ES 获取聚合结果的去重总数："></a>ES 获取聚合结果的去重总数：</h3><blockquote>
+<p>ES 去重计数：cardinality（<code>count(distinct)</code>）</p>
+</blockquote>
+<p>针对ES索引统计某个字段上出现的不同值的个数时，可以使用cardinality聚合查询完成:</p>
+<figure class="highlight http"><figcaption><span>request</span></figcaption><table><tr><td class="code"><pre><span class="line">GET http://localhost:9200/cdr_202103*/_search</span><br><span class="line"><span class="attribute">Content-Type</span><span class="punctuation">: </span>application/json</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">  &quot;aggregations&quot;: &#123;</span><br><span class="line">    &quot;count&quot;: &#123;</span><br><span class="line">      &quot;cardinality&quot;: &#123;</span><br><span class="line">        &quot;field&quot;: &quot;enterpriseId&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;count2&quot;: &#123;</span><br><span class="line">      &quot;terms&quot;: &#123;</span><br><span class="line">        &quot;field&quot;: &quot;enterpriseId&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="ES-nested-字段聚合"><a href="#ES-nested-字段聚合" class="headerlink" title="ES nested 字段聚合"></a>ES nested 字段聚合</h2><h3 id="ES-nested-子聚合"><a href="#ES-nested-子聚合" class="headerlink" title="ES nested 子聚合"></a>ES nested 子聚合</h3><p>ES 对nested字段的某个属性聚合时,有时候,需要计算 记录数,而不是在nested字段数组中出现的次数时;可以使用reverse_nested<br>语句实现需求.reverse_nested语句,可以在nested子聚合的前提下,查询上层聚合的数据属性信息.查询nested字段上层的别的属性. nested 子字段聚合时，聚合上层数据</p>
+<ul>
+<li>示例</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">curl -XGET <span class="string">&#x27;localhost:9200/ticket_202001*/_search&#x27;</span> -H <span class="string">&#x27;Content-Type:application&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;size&quot;:0,</span></span><br><span class="line"><span class="string">  &quot;aggregations&quot;:&#123;</span></span><br><span class="line"><span class="string">    &quot;record&quot;:&#123;</span></span><br><span class="line"><span class="string">      &quot;nested&quot;: &#123;</span></span><br><span class="line"><span class="string">        &quot;path&quot;: &quot;record&quot;</span></span><br><span class="line"><span class="string">      &#125;,</span></span><br><span class="line"><span class="string">      &quot;aggregations&quot;:&#123;</span></span><br><span class="line"><span class="string">        &quot;recordNo&quot;:&#123;</span></span><br><span class="line"><span class="string">          &quot;terms&quot;: &#123;</span></span><br><span class="line"><span class="string">            &quot;field&quot;: &quot;record.no&quot;,</span></span><br><span class="line"><span class="string">            &quot;size&quot;: 10</span></span><br><span class="line"><span class="string">          &#125;,</span></span><br><span class="line"><span class="string">          &quot;aggregations&quot;: &#123;</span></span><br><span class="line"><span class="string">            &quot;thinkCount&quot;:&#123;</span></span><br><span class="line"><span class="string">              &quot;reverse_nested&quot;:&#123;&#125;,</span></span><br><span class="line"><span class="string">              &quot;aggregations&quot;:&#123;</span></span><br><span class="line"><span class="string">                &quot;ids&quot;:&#123;</span></span><br><span class="line"><span class="string">                  &quot;terms&quot;:&#123;</span></span><br><span class="line"><span class="string">                    &quot;field&quot;:&quot;uniqueId&quot;</span></span><br><span class="line"><span class="string">                  &#125;</span></span><br><span class="line"><span class="string">                &#125;</span></span><br><span class="line"><span class="string">              &#125;</span></span><br><span class="line"><span class="string">            &#125;</span></span><br><span class="line"><span class="string">          &#125;</span></span><br><span class="line"><span class="string">        &#125;</span></span><br><span class="line"><span class="string">      &#125;</span></span><br><span class="line"><span class="string">    &#125;</span></span><br><span class="line"><span class="string">  &#125;</span></span><br><span class="line"><span class="string">&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="ES-nested-字段size-获取"><a href="#ES-nested-字段size-获取" class="headerlink" title="ES nested 字段size 获取"></a>ES nested 字段size 获取</h3><ul>
+<li>示例</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">curl -XGET <span class="string">&#x27;localhost:9200/ticket_*/_search?pretty&#x27;</span> -H <span class="string">&#x27;Content-Type:application/json&#x27;</span> -d<span class="string">&#x27;</span></span><br><span class="line"><span class="string">&#123;</span></span><br><span class="line"><span class="string">  &quot;size&quot;: 0,</span></span><br><span class="line"><span class="string">  &quot;aggregations&quot;: &#123;</span></span><br><span class="line"><span class="string">    &quot;ticketIds&quot;: &#123;</span></span><br><span class="line"><span class="string">      &quot;terms&quot;: &#123;</span></span><br><span class="line"><span class="string">        &quot;field&quot;: &quot;uniqueId&quot;</span></span><br><span class="line"><span class="string">      &#125;,</span></span><br><span class="line"><span class="string">      &quot;aggregations&quot;: &#123;</span></span><br><span class="line"><span class="string">        &quot;taskCount&quot;: &#123;</span></span><br><span class="line"><span class="string">          &quot;sum&quot;: &#123;</span></span><br><span class="line"><span class="string">            &quot;script&quot;: &quot;params._source.record.size()&quot;</span></span><br><span class="line"><span class="string">          &#125;,</span></span><br><span class="line"><span class="string">          &quot;size&quot;: 100</span></span><br><span class="line"><span class="string">        &#125;</span></span><br><span class="line"><span class="string">      &#125;</span></span><br><span class="line"><span class="string">    &#125;</span></span><br><span class="line"><span class="string">  &#125;</span></span><br><span class="line"><span class="string">&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="ES-桶聚合与分页聚合"><a href="#ES-桶聚合与分页聚合" class="headerlink" title="ES 桶聚合与分页聚合"></a>ES 桶聚合与分页聚合</h2><h3 id="ES-聚合结果过滤、分页、排序-bucket-filter-过滤-、bucket-sort-排序、截取-。"><a href="#ES-聚合结果过滤、分页、排序-bucket-filter-过滤-、bucket-sort-排序、截取-。" class="headerlink" title="ES 聚合结果过滤、分页、排序 - bucket_filter(过滤)、bucket_sort(排序、截取)。"></a>ES 聚合结果过滤、分页、排序 - bucket_filter(过滤)、bucket_sort(排序、截取)。</h3><p>存在版本制约，&gt;6.0.0</p>
+<p>语句示例：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;query&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;bool&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;filter&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;term&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;my_record&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;adjust_pure_negative&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;boost&quot;</span><span class="punctuation">:</span> <span class="number">1.0</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;_source&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;dateTerm&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;terms&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;uniqueId&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">3000</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;min_doc_count&quot;</span><span class="punctuation">:</span> <span class="number">1</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;shard_min_doc_count&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;show_term_doc_count_error&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;recordCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;value_count&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;uniqueId&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;bucket_filter&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;bucket_selector&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;buckets_path&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">              <span class="attr">&quot;recordCount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;recordCount &gt; _count&quot;</span></span><br><span class="line">            <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;script&quot;</span><span class="punctuation">:</span> <span class="string">&quot;params.recordCount &lt; 100&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;bucket_sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;bucket_sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">              <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;recordCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">                  <span class="attr">&quot;order&quot;</span><span class="punctuation">:</span> <span class="string">&quot;desc&quot;</span></span><br><span class="line">                <span class="punctuation">&#125;</span></span><br><span class="line">              <span class="punctuation">&#125;</span></span><br><span class="line">            <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">10</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;from&quot;</span><span class="punctuation">:</span> <span class="number">0</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+
+<h3 id="ES-聚合结果分页"><a href="#ES-聚合结果分页" class="headerlink" title="ES 聚合结果分页"></a>ES 聚合结果分页</h3><blockquote>
+<p>技术点：bucket_sort(分页操作)、cardinality(总数计算)</p>
+</blockquote>
+<blockquote>
+<p>先决条件：</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ES 结构： &#123;city, humanCount&#125;</span><br><span class="line">需求：统计 分页统计每个city的人口情况</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>分析语句：</li>
+</ul>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;query&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;match_all&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;dateTerm&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;terms&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;city&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">3000</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;min_doc_count&quot;</span><span class="punctuation">:</span> <span class="number">1</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;shard_min_doc_count&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;show_term_doc_count_error&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;aggregations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;humanCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;value_count&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;field&quot;</span><span class="punctuation">:</span> <span class="string">&quot;city&quot;</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;bucket_sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;bucket_sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;sort&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">              <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;humanCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">                  <span class="attr">&quot;order&quot;</span><span class="punctuation">:</span> <span class="string">&quot;desc&quot;</span></span><br><span class="line">                <span class="punctuation">&#125;</span></span><br><span class="line">              <span class="punctuation">&#125;</span></span><br><span class="line">            <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;size&quot;</span><span class="punctuation">:</span> <span class="number">10</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;from&quot;</span><span class="punctuation">:</span> <span class="number">0</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;totalCount&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;cardinality&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;filed&quot;</span><span class="punctuation">:</span> <span class="string">&quot;city&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="参考信息"><a href="#参考信息" class="headerlink" title="参考信息"></a>参考信息</h2><ul>
+<li>参考链接：<ul>
+<li><a href="https://blog.csdn.net/yy_wg/article/details/72676361">ES 聚合时区问题解决</a></li>
+</ul>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>Elasticsearch</tag>
+        <tag>Aggregations</tag>
+        <tag>Script</tag>
+        <tag>Nested</tag>
+        <tag>Paging</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>FFMPEG 使用笔记</title>
+    <url>/posts/a6f2a32b.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="FFMPEG-使用笔记"><a href="#FFMPEG-使用笔记" class="headerlink" title="FFMPEG 使用笔记"></a>FFMPEG 使用笔记</h1><h2 id="视频压缩"><a href="#视频压缩" class="headerlink" title="视频压缩"></a>视频压缩</h2><ul>
+<li>改变帧率  <figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-r 20：表示帧率设置为 20fps</span></span><br><span class="line">ffmpeg -i Desktop/吉他.mp4  -r 20  Desktop/output1.mp4</span><br></pre></td></tr></table></figure></li>
+<li>指定文件大小  <figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">fs 20 : 表示文件大小最大值为15MB</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">把视频截了一部分 --- 这种方法不行</span></span><br><span class="line">ffmpeg -i Desktop/吉他.mp4  -fs 15MB  Desktop/output1.mp4</span><br></pre></td></tr></table></figure></li>
+<li>改变分辨率  <figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">-s vga : 指定分辨率， vga 代表 600*480，也可以换成其他的值</span></span><br><span class="line">ffmpeg -i Desktop/1.mov -s vga Desktop/1.mp4</span><br></pre></td></tr></table></figure></li>
+<li>改变码率  <figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">视频的原码率是 2.1Mb/s ，压缩为 1.5Mb/s</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">-b:v 1.5M : 指定码率</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">-b:v :指定视频的码率</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">-b:a : 指定音频的码率</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">1.5M：码率的值 1.5M 表示 1.5Mb/s</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">当码率设置为小于 1.5Mb/s 后视频的清晰度会降低很多</span></span><br><span class="line">ffmpeg -i Desktop/1.mov -b:v 1.5M  Desktop/1.mp4</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h2 id="视频合并"><a href="#视频合并" class="headerlink" title="视频合并"></a>视频合并</h2><ul>
+<li>使用文件列表进行视频合并:<ul>
+<li>filelist.list<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">file &#x27;./index1.mp4&#x27;</span><br><span class="line">file &#x27;./index2.mp4&#x27;</span><br><span class="line">file &#x27;./index3.mp4&#x27;</span><br><span class="line">file &#x27;./index4.mp4&#x27;</span><br><span class="line">file &#x27;./index5.mp4&#x27;</span><br></pre></td></tr></table></figure></li>
+<li>命令：<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ffmpeg 合并视频流</span></span><br><span class="line">ffmpeg -f concat -i filelist.list -c copy target.mkv</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="视频转码提速"><a href="#视频转码提速" class="headerlink" title="视频转码提速"></a>视频转码提速</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">假设原始指令为：</span></span><br><span class="line">ffmpeg -i movie.mp4 -vf &quot;crop=640:256:0:400&quot; -strict -2 YourCroppedMovie.mp4</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">那么启用多线程后的指令：</span></span><br><span class="line">ffmpeg -i movie.mp4 -vf &quot;crop=640:256:0:400&quot; -threads 5 -preset ultrafast -strict -2 YourCroppedMovie.mp4</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">仔细观察，其实核心参数是：</span></span><br><span class="line">-threads 5 -preset ultrafast </span><br></pre></td></tr></table></figure>
+
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a href="https://zhuanlan.zhihu.com/p/97914587">视频转码、剪切、合并、播放速调整</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/365239364">视频剪辑</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/356701700">ffmpeg 常用命令</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>技术图谱</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+        <tag>学习路线</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java 工程师技术图谱</title>
+    <url>/posts/1cf4dfe4.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h2 id="Java-工程师技术图谱"><a href="#Java-工程师技术图谱" class="headerlink" title="Java 工程师技术图谱"></a>Java 工程师技术图谱</h2><iframe src="https://www.processon.com/embed/5fe2dfdee0b34d299ff98b3a" width="100%" height="1000px" frameborder="0" loading="lazy" allowfullscreen></iframe>
+]]></content>
+      <categories>
+        <category>技术图谱</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+        <tag>学习路线</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Redis 知识整理</title>
+    <url>/posts/3fecb9b0.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h2 id="Redis-知识整理"><a href="#Redis-知识整理" class="headerlink" title="Redis 知识整理"></a>Redis 知识整理</h2><h3 id="1、-redis-内存模型、单线程、Redis性能高的原因。"><a href="#1、-redis-内存模型、单线程、Redis性能高的原因。" class="headerlink" title="1、 redis 内存模型、单线程、Redis性能高的原因。"></a>1、 redis <code>内存模型</code>、<code>单线程</code>、Redis<code>性能高的原因</code>。</h3><ul>
+<li>Redis指令处理逻辑  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Redis 基于Reactor模式开发了一个名为 File Event Handler 的网络事件处理器；</span><br><span class="line">这个事件处理器是单线程的，所以称Redis 是单线程的。</span><br><span class="line"></span><br><span class="line">Redis 核心是通过IO多路复用的方式监听多个socket，并根据socket传输的事件类型将</span><br><span class="line">事件分发给不同的事件处理器处理。</span><br><span class="line"></span><br><span class="line">Redis的核心模块包含四个：被监听的多个Socket、IO多路复用程序、事件分派器、事件处理器。</span><br><span class="line">IO多路复用程序通过将会将有事件的多个socket 放入队列，每次取出一个socket，</span><br><span class="line">并根据事件类型通过事件分派器将事件分给对应的事件处理器处理；每次处理一个，处理完一个取一个；</span><br><span class="line"></span><br><span class="line">以上，便是redis处理命令的基本逻辑。</span><br></pre></td></tr></table></figure></li>
+<li>高性能原因：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">而 Redis 性能高的原因可以分为以下三点：</span><br><span class="line">1、纯内存操作</span><br><span class="line">2、采用非阻塞的IO多路复用所以快</span><br><span class="line">3、单线程方式由于没有多线程方式需要来回切换上下文的操作，所以快。</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h3 id="2、-缓存的三大问题-缓存雪崩、缓存击穿、缓存穿透-与解决办法"><a href="#2、-缓存的三大问题-缓存雪崩、缓存击穿、缓存穿透-与解决办法" class="headerlink" title="2、 缓存的三大问题 缓存雪崩、缓存击穿、缓存穿透 与解决办法"></a>2、 缓存的三大问题 <code>缓存雪崩、缓存击穿、缓存穿透</code> 与解决办法</h3><ul>
+<li>缓存雪崩：缓存在某段时间内大面积失效，后面的请求都落在db上，导致数据库短时间承受大量请求进而崩溃。<ul>
+<li>解决办法（4个）<ul>
+<li>将缓存的过期时间设置的随即些，以防止缓存同一时间大面积失效。</li>
+<li>在缓存中追加缓存字段，当缓存失效，则更新缓存。</li>
+<li>缓存预热（即，针对项目启动时，缓存中无数据的场景，此时应从数据库中取出数据使用并缓存，而后的请求便可以直接使用缓存数据）。</li>
+<li>使用互斥锁。（即保证接受到多个请求时，只有一个请求操作缓存，当缓存失效取出db中的数据以更新缓存；之后的请求，可以使用缓存）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>缓存击穿：  <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">    缓存中不存在数据，数据库中存在数据，而并发用户数增加，同时请求某一条这样的数据，同时从缓存中未取到数据，又同时从数据库中取，进而导致数据库</span><br><span class="line">短时间接受的请求增多，压力增大；</span><br><span class="line">    缓存击穿 说的是针对同一数据的并发量增大，导致db压力增大；缓存雪崩 说的是不同数据同时国旗，导致db接受请求增多，压力增大。</span><br></pre></td></tr></table></figure>
+<ul>
+<li>解决办法（2个）：<ul>
+<li>将热数据的有效期设为永不过期</li>
+<li>使用互斥锁。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>缓存穿透：缓存中无数据，数据库中也无数据，此时所有的请求均落在db上，导致数据库承受大量请求进而崩溃<ul>
+<li>解决办法（3个）：<ul>
+<li>接口层增加逻辑校验，例如权限校验、id！&lt;=0 等，以期望拦截无效请求。</li>
+<li>针对 缓存、db都没有的数据，以key-null 的形式缓存；并设置较短的有效期（太长可能会影响性能）。</li>
+<li>使用布隆过滤器，即将所有可能的数据hash并放入足够大的bitmap；接受到请求后，判断请求对应的hash是否在bitmap中，如果没有则拦截（ 有请求，必有hash在bitmap，有hash 在bitmap<br>不一定有数据，原因：hash算法存在hash碰撞（即：不同的数据，hash后的值可能存在相同））</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>Redis</tag>
+        <tag>性能优化</tag>
+        <tag>常识</tag>
+        <tag>解决办法</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Git 学习笔记——高端操作</title>
+    <url>/posts/d617e609.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="GIT-学习笔记"><a href="#GIT-学习笔记" class="headerlink" title="GIT 学习笔记"></a>GIT 学习笔记</h1><h2 id="Git-本地仓库仓库-远程连接http-gt-ssh"><a href="#Git-本地仓库仓库-远程连接http-gt-ssh" class="headerlink" title="Git 本地仓库仓库 远程连接http -&gt; ssh"></a>Git 本地仓库仓库 远程连接http -&gt; ssh</h2><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 查看远程仓库类型</span><br><span class="line">git remote -v</span><br><span class="line"># 修改远层仓库</span><br><span class="line">git remote rm origin</span><br><span class="line">git remote add origin git@xxx/ios.git</span><br><span class="line">git push origin xxx</span><br></pre></td></tr></table></figure>
+
+<h2 id="windows-下IDEA-配置-terminal为git"><a href="#windows-下IDEA-配置-terminal为git" class="headerlink" title="windows 下IDEA 配置 terminal为git"></a>windows 下IDEA 配置 terminal为git</h2><ul>
+<li>bash 终端配置<ul>
+<li>启动bash</li>
+<li>调出属性界面</li>
+<li>在选项tab栏中勾选<code>使用旧版控制台</code></li>
+</ul>
+</li>
+<li>idea terminal 改为bash.exe</li>
+<li>重启电脑</li>
+</ul>
+<h2 id="windows下中文乱码问题："><a href="#windows下中文乱码问题：" class="headerlink" title="windows下中文乱码问题："></a>windows下中文乱码问题：</h2><figure class="highlight md"><table><tr><td class="code"><pre><span class="line">Windows系统下GitBash显示的中文乱码解决方案</span><br><span class="line">在git 安装目录 etc 下面 添加以下配置信息</span><br><span class="line"></span><br><span class="line">1,/etc/gitconfig：</span><br><span class="line"></span><br><span class="line">　　[gui]</span><br><span class="line"></span><br><span class="line">　　encoding = utf-8 #代码库统一用urf-8,在git gui中可以正常显示中文</span><br><span class="line"></span><br><span class="line">　　[i18n]</span><br><span class="line"></span><br><span class="line">　　commitencoding = GB2312 #log编码，window下默认gb2312,声明后发到服务器才不会乱码</span><br><span class="line"></span><br><span class="line">　　[svn]</span><br><span class="line"></span><br><span class="line">　　pathnameencoding = GB2312 #支持中文路径</span><br><span class="line"></span><br><span class="line">2,/etc/git-completion.bash:</span><br><span class="line"></span><br><span class="line">　　alias ls=&#x27;ls --show-control-chars --color=auto&#x27; #ls能够正常显示中文</span><br><span class="line"></span><br><span class="line">3,/etc/inputrc:</span><br><span class="line"></span><br><span class="line">　　set output-meta on #bash中可以正常输入中文</span><br><span class="line"></span><br><span class="line">　　set convert-meta off</span><br><span class="line"></span><br><span class="line">4,/etc/profile:</span><br><span class="line"></span><br><span class="line">　　export LESSHARSET=utf-8 #$ git log 命令不像其它 vcs 一样，n 条 log 从头滚到底，它会恰当地停在第一页，按  space 键再往后翻页。这是通过将 log 送给 less 处理实现的。以上即是设置 less 的字符编码，使得 $ git log  可以正常显示中文。</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">PS:经过实践建议更改如下：</span><br><span class="line"></span><br><span class="line">commitencoding =utf-8</span><br><span class="line"></span><br><span class="line">pathnameencoding = utf-8</span><br><span class="line"></span><br><span class="line">这样更改：gitbash中文显示正常，并且TortorseGit软件中文也会显示正常，不然两个软件会有中文显示的冲突，其中一个软件的中文会有问题。</span><br></pre></td></tr></table></figure>
+
+<h2 id="GIT-不常用命令梳理"><a href="#GIT-不常用命令梳理" class="headerlink" title="GIT 不常用命令梳理"></a>GIT 不常用命令梳理</h2><p>1、将本地项目推送至远程</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">git push -u orgin feature/my-feature</span><br></pre></td></tr></table></figure>
+
+<p>2、打标签</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">git tag -a &lt;version&gt; -m &#x27;打标签信息&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>3、删除远程分支</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">git push -f origin :feature/data-migration</span><br></pre></td></tr></table></figure>
+
+<p>4、将远程删除的分支同步到本地</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">git remote prune origin</span><br></pre></td></tr></table></figure>
+
+<p>5、永久删除某个文件的log历史记录</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">git filter-branch -f --tree-filter <span class="string">&#x27;rm -rf note-doc/note-personal/note-scret/ubuntu配置信息.md&#x27;</span> HEAD </span><br><span class="line">git push origin -f</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Git</category>
+      </categories>
+      <tags>
+        <tag>高端操作</tag>
+        <tag>Git</tag>
+        <tag>版本控制</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/posts/1243066710.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+      <categories>
+        <category>Themes</category>
+      </categories>
+      <tags>
+        <tag>Demo</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>小米手环4 设置自定义壁纸教程</title>
+    <url>/posts/4a3d913b.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="小米手环4-设置自定义壁纸教程"><a href="#小米手环4-设置自定义壁纸教程" class="headerlink" title="小米手环4 设置自定义壁纸教程"></a>小米手环4 设置自定义壁纸教程</h1><h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>离线同步 被替换了的表盘bin文件，实现自定义报表的设置。</p>
+<h2 id="工具"><a href="#工具" class="headerlink" title="工具"></a>工具</h2><ul>
+<li>米环4自定义表盘.apk</li>
+<li>小米运动.apk</li>
+<li>Android 文件传输工具</li>
+<li>MacBook</li>
+</ul>
+<h2 id="流程"><a href="#流程" class="headerlink" title="流程"></a>流程</h2><ol>
+<li>用手机连接手环4，并在<code>表盘商城</code>中 下载一款官方的手环主题，以 <code>遨游太空</code> 壁纸为例，对应壁纸在手机的路径如下：<ul>
+<li>表盘存储位置路径：<code>Android/data/com.xiaomi.hm.health/files/watch_skin_local/</code>AVOBRGR4h4OpaZ5y1EDCIj8VSGpAqUYsGqVKLfr5``</li>
+</ul>
+</li>
+<li>从<code>米环4自定义表盘</code>上下载自己中意的主题表盘，或自己定义一个，并更名为：<code>AVOBRGR4h4OpaZ5y1EDCIj8VSGpAqUYsGqVKLfr5.bin</code></li>
+<li>使用下载下来的表盘bin文件替换第一步中下载的表盘bin文件，</li>
+<li>手机断网情况下，再次同步第一步中下载的表盘。</li>
+<li>DONE</li>
+</ol>
+]]></content>
+      <categories>
+        <category>外设</category>
+      </categories>
+      <tags>
+        <tag>外设</tag>
+        <tag>主题美化</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>主题设置笔记</title>
+    <url>/posts/2242015193.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h2 id="主题设置笔记"><a href="#主题设置笔记" class="headerlink" title="主题设置笔记"></a>主题设置笔记</h2><h4 id="aplayer"><a href="#aplayer" class="headerlink" title="aplayer"></a>aplayer</h4><table>
+<thead>
+<tr>
+<th align="left">option</th>
+<th align="left">default</th>
+<th align="left">description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">data-id</td>
+<td align="left">require</td>
+<td align="left">song id / playlist id / album id / search keyword</td>
+</tr>
+<tr>
+<td align="left">data-server</td>
+<td align="left">require</td>
+<td align="left">music platform: netease, tencent, kugou, xiami, baidu</td>
+</tr>
+<tr>
+<td align="left">data-type</td>
+<td align="left">require</td>
+<td align="left">song, playlist, album, search, artist</td>
+</tr>
+<tr>
+<td align="left">data-fixed</td>
+<td align="left">false</td>
+<td align="left">enable fixed mode</td>
+</tr>
+<tr>
+<td align="left">data-mini</td>
+<td align="left">false</td>
+<td align="left">enable mini mode</td>
+</tr>
+<tr>
+<td align="left">data-autoplay</td>
+<td align="left">false</td>
+<td align="left">audio autoplay</td>
+</tr>
+<tr>
+<td align="left">data-theme</td>
+<td align="left">#2980b9</td>
+<td align="left">main color</td>
+</tr>
+<tr>
+<td align="left">data-loop</td>
+<td align="left">all</td>
+<td align="left">player loop play, values: ‘all’, ‘one’, ‘none’</td>
+</tr>
+<tr>
+<td align="left">data-order</td>
+<td align="left">list</td>
+<td align="left">player play order, values: ‘list’, ‘random’</td>
+</tr>
+<tr>
+<td align="left">data-preload</td>
+<td align="left">auto</td>
+<td align="left">values: ‘none’, ‘metadata’, ‘auto’</td>
+</tr>
+<tr>
+<td align="left">data-volume</td>
+<td align="left">0.7</td>
+<td align="left">default volume, notice that player will remember user setting, default volume will not work after user set volume themselves</td>
+</tr>
+<tr>
+<td align="left">data-mutex</td>
+<td align="left">true</td>
+<td align="left">prevent to play multiple player at the same time, pause other players when this player start play</td>
+</tr>
+<tr>
+<td align="left">data-lrctype</td>
+<td align="left">0</td>
+<td align="left">lyric type</td>
+</tr>
+<tr>
+<td align="left">data-listfolded</td>
+<td align="left">false</td>
+<td align="left">indicate whether list should folded at first</td>
+</tr>
+<tr>
+<td align="left">data-listmaxheight</td>
+<td align="left">340px</td>
+<td align="left">list max height</td>
+</tr>
+<tr>
+<td align="left">data-storagename</td>
+<td align="left">metingjs</td>
+<td align="left">localStorage key that store player setting</td>
+</tr>
+</tbody></table>
+<h4 id="搜索引擎检索不到-blog-问题解决："><a href="#搜索引擎检索不到-blog-问题解决：" class="headerlink" title="搜索引擎检索不到 blog 问题解决："></a>搜索引擎检索不到 blog 问题解决：</h4><p><a href="https://orianna-zzo.github.io/sci-tech/2018-01/blog%E5%85%BB%E6%88%90%E8%AE%B05-%E8%A6%81%E8%AE%A9github-pages%E8%A2%AB%E7%B4%A2%E5%BC%95%E5%88%B0/">blog养成记5-要让github-pages被索引到</a> </p>
+<h4 id="butterFly"><a href="#butterFly" class="headerlink" title="butterFly"></a>butterFly</h4><p>参考链接：<br><a href="https://demo.jerryc.me/posts/4aa8abbe/">Butterfly 安装文档(三) 主题配置-1</a><br><a href="https://ifibe.com/index.html">主题优化</a></p>
+<h4 id="文档编辑笔记："><a href="#文档编辑笔记：" class="headerlink" title="文档编辑笔记："></a>文档编辑笔记：</h4><figure class="highlight markdown"><table><tr><td class="code"><pre><span class="line">字段说明</span><br><span class="line">title: 标题</span><br><span class="line">date: 日期</span><br><span class="line">tags: 标签</span><br><span class="line">top<span class="emphasis">_img: 博客详情页顶图</span></span><br><span class="line"><span class="emphasis">cover: 首页分页显示时显示的图片，可以设置http链接。</span></span><br><span class="line"><span class="emphasis"></span></span><br><span class="line"><span class="emphasis">title: Test</span></span><br><span class="line"><span class="emphasis">date: 2020-04-01 18:44:46</span></span><br><span class="line"><span class="emphasis">tags:</span></span><br><span class="line"><span class="emphasis">top_</span>img: /img/avatar.png</span><br><span class="line">cover: http://t9.baidu.com/it/u=1307125826,3433407105&amp;fm=79&amp;app=86&amp;f=JPEG?w=5760&amp;h=3240</span><br></pre></td></tr></table></figure>
+
+
+<h4 id="标签设置"><a href="#标签设置" class="headerlink" title="标签设置"></a>标签设置</h4><span class="hide-inline"><button type="button" class="hide-button button--animated" style="background-color: bg;color: color">display
+  </button><span class="hide-content">content</span></span>
+
+<h4 id="TAB"><a href="#TAB" class="headerlink" title="TAB"></a>TAB</h4><div class="tabs" id="test1"><ul class="nav-tabs"><li class="tab active"><button type="button" data-href="#test1-1">test1 1</button></li><li class="tab"><button type="button" data-href="#test1-2">test1 2</button></li><li class="tab"><button type="button" data-href="#test1-3">test1 3</button></li></ul><div class="tab-contents"><div class="tab-item-content active" id="test1-1"><p><strong>This is Tab 1.</strong></p><button type="button" class="tab-to-top" aria-label="scroll to top"><i class="fas fa-arrow-up"></i></button></div><div class="tab-item-content" id="test1-2"><p><strong>This is Tab 2.</strong></p><button type="button" class="tab-to-top" aria-label="scroll to top"><i class="fas fa-arrow-up"></i></button></div><div class="tab-item-content" id="test1-3"><p><strong>This is Tab 3.</strong></p><button type="button" class="tab-to-top" aria-label="scroll to top"><i class="fas fa-arrow-up"></i></button></div></div></div>
+
+<h4 id="特殊图标-mermaid"><a href="#特殊图标-mermaid" class="headerlink" title="特殊图标 mermaid"></a>特殊图标 mermaid</h4><div class="mermaid">pie
+    title Key elements in Product X
+    &quot;Calcium&quot; : 42.96
+    &quot;Potassium&quot; : 50.05
+    &quot;Magnesium&quot; : 9.01
+    &quot;Magnesium1&quot; : 1.00
+    &quot;Iron&quot; :  5</div>
+
+<div class="mermaid">graph TD;
+    A--&gt;B;
+    A--&gt;C;
+    B--&gt;D;
+    C--&gt;D;
+    C--&gt;F;</div>
+
+<div class="btn-center">
+<a class="btn-beautify button--animated larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated blue larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated pink larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated red larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated purple larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated orange larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+<a class="btn-beautify button--animated green larger" href="http://www.jerryc.me" 
+  title="JerryC"><i class="far fa-hand-point-right fa-fw"></i><span>JerryC</span></a>
+</div>
+
+
+<h2 id="数学表达式：-MathTex"><a href="#数学表达式：-MathTex" class="headerlink" title="数学表达式： MathTex"></a>数学表达式： MathTex</h2><p>$$\sum_{i=0}^n i^2 = \frac{(n^2+n)(2n+1)}{6}$$</p>
+<h4 id="flow-流程图设置"><a href="#flow-流程图设置" class="headerlink" title="flow 流程图设置"></a>flow 流程图设置</h4> <div id="flowchart-0" class="flow-chart"></div>
+
+<h4 id="IFRAME-嵌入"><a href="#IFRAME-嵌入" class="headerlink" title="IFRAME 嵌入"></a>IFRAME 嵌入</h4><iframe src="https://yinzk.github.io/" width="90%" height="100px" frameborder="0" loading="lazy" allowfullscreen></iframe>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.2.7/raphael.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/flowchart/1.6.5/flowchart.min.js"></script><textarea id="flowchart-0-code" style="display: none">开始=>start: 开始
+结束=>end: 结束
+慧智操作1=>operation: 慧智操作1：模型配置（模型配置+分类管理）
+慧智操作2=>subroutine: 慧智操作2：调用nlp任务发起接口（发起任务+同步配置信息）
+慧智操作3=>subroutine: 慧智操作3：接收分析结果，数据处理，并最终存入ES（发起任务+同步配置信息）
+
+nlp操作1=>subroutine: nlp操作1：处理 对话分析 任务（调用慧智接口，获取文本数据）
+nlp操作2=>operation: nlp操作2：调用慧智接口，根据任务id同步 对话分析结果
+    
+开始->慧智操作1
+慧智操作1->慧智操作2
+慧智操作2->nlp操作1
+nlp操作1->nlp操作2
+nlp操作2->慧智操作3
+慧智操作3->结束</textarea><textarea id="flowchart-0-options" style="display: none">{"scale":1,"line-width":2,"line-length":50,"text-margin":10,"font-size":12}</textarea><script>  var code = document.getElementById("flowchart-0-code").value;  var options = JSON.parse(decodeURIComponent(document.getElementById("flowchart-0-options").value));  var diagram = flowchart.parse(code);  diagram.drawSVG("flowchart-0", options);</script>]]></content>
+      <categories>
+        <category>Themes</category>
+      </categories>
+      <tags>
+        <tag>Butterfly</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>搜索引擎验证文件</title>
+    <url>/posts/3049498579.html</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h2 id="主题设置笔记"><a href="#主题设置笔记" class="headerlink" title="主题设置笔记"></a>主题设置笔记</h2><h3 id="github"><a href="#github" class="headerlink" title="github"></a>github</h3><ul>
+<li>google: <a href="https://yinzk.github.io/google706d32e9060c21ea.html">google706d32e9060c21ea.html</a></li>
+<li>baidu: <a href="https://yinzk.github.io/baidu_verify_code-cXkaljdsGR.html">baidu_verify_code-cXkaljdsGR.html</a><h3 id="gitee"><a href="#gitee" class="headerlink" title="gitee"></a>gitee</h3></li>
+<li>baidu: <a href="http://yinzk.gitee.io/baidu_verify_code-NJEszMZUL0.html">baidu_verify_code-NJEszMZUL0.html</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>Themes</category>
+      </categories>
+      <tags>
+        <tag>HEXO</tag>
+        <tag>检索收录</tag>
+      </tags>
+  </entry>
+</search>
